@@ -6,7 +6,6 @@ svn co https://github.com/xiaorouji/openwrt-passwall-packages/trunk ./
 svn co https://github.com/xiaorouji/openwrt-passwall/trunk ./
 svn co https://github.com/kiddin9/openwrt-packages/trunk/luci-app-netdata
 svn co https://github.com/chenmozhijin/luci-app-socat/trunk/luci-app-socat
-
 rm -rf .svn
 rm -rf ./*/.git
 rm -rf ./*/.svn 
