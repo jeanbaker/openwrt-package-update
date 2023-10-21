@@ -52,8 +52,9 @@ jobs:
         [ -e $GITHUB_WORKSPACE/README.md ] && cp $GITHUB_WORKSPACE/README.md $GITHUB_WORKSPACE/packages
         cd $GITHUB_WORKSPACE/packages
         git add .
-        git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
-        git push --quiet "https://${{ secrets.TOKEN }}@github.com/jeanbaker/openwrt-packages.git"
+        git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"  PAC_TOKEN
+        git push --quiet "https://${{ PAC_TOKEN }}@github.com/jeanbaker/openwrt-packages.git"
+        #git push --quiet "https://${{ secrets.TOKEN }}@github.com/jeanbaker/openwrt-packages.git"
  
 
  
