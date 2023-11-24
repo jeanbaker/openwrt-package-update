@@ -1,6 +1,6 @@
 #!/bin/bash
-svn co https://github.com/kenzok8/openwrt-packages/trunk/adguardhome
-svn co https://github.com/kenzok8/openwrt-packages/trunk/luci-app-adguardhome 
+svn co https://github.com/kiddin9/openwrt-packages/trunk/adguardhome
+svn co https://github.com/kiddin9/openwrt-packages/trunk/luci-app-adguardhome 
 svn co https://github.com/xiaorouji/openwrt-passwall-packages/trunk ./
 rm -rf .svn
 svn co https://github.com/xiaorouji/openwrt-passwall/trunk ./
