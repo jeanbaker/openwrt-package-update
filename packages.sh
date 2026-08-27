@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# 通用函数：只拉取远程仓库中的某一个指定子文件夹（代替旧版 svn co）
+# 通用函数：替代已失效的 svn co，只拉取目标仓库中的某一个指定子文件夹
 merge_package() {
     local repo_url=$1
     local branch=$2
@@ -30,7 +30,7 @@ echo "==> Cloning argon..."
 git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
 
 
-# 5. 递归清理所有 Git 与版本控制相关的元数据文件
+#清理所有 Git 版本控制元数据，保持包目录干净
 echo "==> Cleaning up metadata..."
 find . -type d -name ".git" -exec rm -rf {} +
 find . -type d -name ".svn" -exec rm -rf {} +
