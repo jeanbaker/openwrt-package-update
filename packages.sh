@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
 
-# 通用函数：替代已失效的 svn co，只拉取目标仓库中的某一个指定子文件夹
+echo "Executing packages.sh in: $(pwd)"
+
+# 通用函数：只拉取远程仓库中的某一个指定子文件夹
 merge_package() {
     local repo_url=$1
     local branch=$2
@@ -16,24 +18,27 @@ merge_package() {
     git sparse-checkout set "$pkg_path"
     cd ..
 
-    rm -rf "$local_dir_name"
+    # 清除旧的同名文件夹并覆写
+    rm -rf "./$local_dir_name"
     mv tmp_pkg/"$pkg_path" ./
     rm -rf tmp_pkg
 }
 
+# 1. 单包拉取 (使用 merge_package)
 merge_package "https://github.com/kiddin9/op-packages.git" "main" "luci-app-netdata"
 merge_package "https://github.com/kiddin9/op-packages.git" "main" "luci-app-smartdns"
 merge_package "https://github.com/kiddin9/op-packages.git" "main" "luci-app-socat"
 merge_package "https://github.com/kiddin9/op-packages.git" "main" "smartdns"
 merge_package "https://github.com/kiddin9/op-packages.git" "main" "netdata"
+merge_package "https://github.com/Openwrt-Passwall/openwrt-passwall.git" "main" "luci-app-passwall"
+
+# 2. 完整仓库克隆 (克隆前必须先 rm -rf 删除旧文件夹，防止报错)
 echo "==> Cloning argon..."
+rm -rf luci-theme-argon
 git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
 
-
-#清理所有 Git 版本控制元数据，保持包目录干净
+# 3. 清理子包中的 Git 元数据 (-mindepth 2 确保不误删 target_repo 本身的 .git)
 echo "==> Cleaning up metadata from subpackages..."
-
-# ⚠️ 关键修正：添加 -mindepth 2，防止把 target_repo 本身的 .git 删掉！
 find . -mindepth 2 -type d -name ".git" -exec rm -rf {} +
 find . -type d -name ".svn" -exec rm -rf {} +
 find . -type d -name ".github" -exec rm -rf {} +
