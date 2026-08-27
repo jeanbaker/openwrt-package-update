@@ -20,14 +20,14 @@ jobs:
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
 
     steps:
-    # 1. 检出当前仓库 openwrt-package-update (获取 packages.sh 脚本)
-    - name: Checkout source repo (openwrt-package-update)
+    # 1. 检出当前源仓库
+    - name: Checkout source repo
       uses: actions/checkout@v4.2.2
       with:
         path: 'source_repo'
 
-    # 2. 检出目标仓库 openwrt-packages 的 packages 分支
-    - name: Checkout target repo (openwrt-packages)
+    # 2. 检出目标 packages 仓库
+    - name: Checkout target repo
       uses: actions/checkout@v4.2.2
       with:
         repository: 'jeanbaker/openwrt-packages'
@@ -35,7 +35,7 @@ jobs:
         token: ${{ secrets.PAC_TOKEN }}
         path: 'target_repo'
 
-    # 3. 初始化 Runner 环境
+    # 3. 初始化环境
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -46,36 +46,43 @@ jobs:
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
 
-    # 4. 进入目标仓库，清空旧包，然后调用源仓库的 packages.sh 生成新包
+    # 4. 执行 packages.sh 脚本更新目标仓库
     - name: Update packages content
       run: |
-        # 确认源仓库根目录下存在 packages.sh
-        if [ ! -f $GITHUB_WORKSPACE/source_repo/packages.sh ]; then
-          echo "Error: packages.sh not found in source repo!"
+        # 1. 校验源文件和目标目录是否存在
+        if [ ! -f "$GITHUB_WORKSPACE/source_repo/packages.sh" ]; then
+          echo "❌ 错误: 在 source_repo 中未找到 packages.sh 脚本！"
           exit 1
         fi
 
-        # 进入目标仓库，清空旧源码文件（保留 .git 目录）
+        if [ ! -d "$GITHUB_WORKSPACE/target_repo" ]; then
+          echo "❌ 错误: target_repo 未能成功检出！请检查 PAC_TOKEN 权限或目标仓库分支 packages 是否存在。"
+          exit 1
+        fi
+
+        # 2. 进入目标目录并清空旧文件（保留 .git）
         cd $GITHUB_WORKSPACE/target_repo
         git rm -rf . >/dev/null 2>&1 || true
 
-        # 给 packages.sh 赋权并运行，拉取内容生成到当前 (target_repo) 目录
+        # 3. 执行 packages.sh 脚本
         chmod +x $GITHUB_WORKSPACE/source_repo/packages.sh
         $GITHUB_WORKSPACE/source_repo/packages.sh
 
-    # 5. 将更新后的内容提交并推送至目标仓库 openwrt-packages 的 packages 分支
+    # 5. 提交并推送
     - name: Upload to target repo
       run: |
-        # 如果源仓库有 README.md，同步覆盖至目标仓库
         [ -f $GITHUB_WORKSPACE/source_repo/README.md ] && cp $GITHUB_WORKSPACE/source_repo/README.md $GITHUB_WORKSPACE/target_repo/
         
         cd $GITHUB_WORKSPACE/target_repo
         
-        # 检查是否有代码变动，避免没有更新时 push 报错
+        echo "=== 当前 target_repo 文件变更状态 ==="
+        git status
+        
         if [ -n "$(git status --porcelain)" ]; then
           git add .
-          git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
+          git commit -m "update $(TZ='Asia/Shanghai' date +@%Y%m%d)"
           git push origin packages
+          echo "✅ 已成功推送更新至 jeanbaker/openwrt-packages 的 packages 分支！"
         else
-          echo "No changes detected, skipping push."
+          echo "⚠️ 未检测到任何代码变更，跳过 Commit & Push。"
         fi
