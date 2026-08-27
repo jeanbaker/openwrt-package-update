@@ -22,14 +22,13 @@ jobs:
     steps:
     # 1. 检出当前仓库（包含 packages.sh 脚本）
     - name: Checkout current repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         path: 'main_repo'
 
-    # 2. 使用 PAC_TOKEN 检出目标仓库的 packages 分支
-    # actions/checkout 会自动将 Token 配置在本地 git config 中，后续无需在 URL 里带 Token
+    # 2. 检出目标 packages 仓库（自动配置 Token 鉴权，无需在 URL 硬编码）
     - name: Checkout target packages repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
       with:
         repository: 'jeanbaker/openwrt-packages'
         ref: 'packages'
@@ -47,30 +46,30 @@ jobs:
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
 
-    # 4. 执行脚本更新包
+    # 4. 执行 packages.sh 脚本更新目标仓库中的包
     - name: Update packages content
       run: |
-        # 进入目标仓库目录，清空原有内容（保留 .git 目录）
+        # 进入目标 packages 仓库目录，清空原有包源码（保留 .git 版本库）
         cd $GITHUB_WORKSPACE/target_packages
         git rm -rf . >/dev/null 2>&1 || true
         
-        # 给当前仓库中的 packages.sh 赋予执行权限并运行
+        # 赋予 main_repo 中的 packages.sh 执行权限并运行
         chmod +x $GITHUB_WORKSPACE/main_repo/packages.sh
         $GITHUB_WORKSPACE/main_repo/packages.sh
 
-    # 5. 提交并推送至目标仓库
+    # 5. 提交并推送变更到目标仓库
     - name: Upload
       run: |
-        # 如果当前仓库根目录下有 README.md，复制过去
+        # 如果当前仓库根目录下存在 README.md，同步复制过去
         [ -f $GITHUB_WORKSPACE/main_repo/README.md ] && cp $GITHUB_WORKSPACE/main_repo/README.md $GITHUB_WORKSPACE/target_packages/
         
         cd $GITHUB_WORKSPACE/target_packages
         
-        # 检查是否有变更，避免无变更时 commit 导致任务失败
+        # 检查是否有内容变更，避免产生空 commit 报错
         if [ -n "$(git status --porcelain)" ]; then
           git add .
           git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
-          # 直接 push 即可，checkout step 已经配置好了 GitHub 身份凭据
+          # 直接推送，actions/checkout 已自动配置过 token 授权凭据
           git push origin packages
         else
           echo "No changes detected, skipping commit."
