@@ -24,25 +24,12 @@ merge_package() {
     mv tmp_pkg/"$pkg_path" ./
     rm -rf tmp_pkg
 }
-
-# 1. 拉取 kiddin9/kwrt-packages 中的单个源码包
-merge_package "https://github.com/kiddin9/kwrt-packages.git" "main" "adguardhome"
-merge_package "https://github.com/kiddin9/kwrt-packages.git" "main" "luci-app-adguardhome"
-merge_package "https://github.com/kiddin9/kwrt-packages.git" "main" "luci-app-netdata"
-merge_package "https://github.com/kiddin9/kwrt-packages.git" "main" "r8125"
-merge_package "https://github.com/kiddin9/kwrt-packages.git" "main" "r8168"
-
-# 2. 拉取 xiaorouji/openwrt-passwall-packages (拉取整个仓库)
-echo "==> Cloning passwall-packages..."
-git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall-packages.git passwall-packages
-
-# 3. 拉取 xiaorouji/openwrt-passwall (拉取整个仓库)
-echo "==> Cloning passwall..."
-git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git passwall
-
-# 4. 拉取单独的应用与主题仓库
-echo "==> Cloning socat & argon..."
-git clone --depth=1 https://github.com/chenmozhijin/luci-app-socat.git luci-app-socat
+merge_package "https://github.com/kiddin9/op-packages.git" "main" "luci-app-netdata"
+merge_package "https://github.com/kiddin9/op-packages.git" "main" "luci-app-smartdns"
+merge_package "https://github.com/kiddin9/op-packages.git" "main" "luci-app-socat"
+merge_package "https://github.com/kiddin9/op-packages.git" "main" "smartdns"
+merge_package "https://github.com/kiddin9/op-packages.git" "main" "netdata"
+echo "==> Cloning argon..."
 git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
 
 # 5. 统一深度清理版本控制残留，保持 OpenWrt package 目录干净
