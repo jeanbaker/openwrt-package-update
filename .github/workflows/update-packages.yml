@@ -6,7 +6,7 @@ on:
     types: published
   push:
     branches:
-      - packages
+      - main
   schedule:
     - cron: 0 12 */7 * *
   workflow_dispatch:
@@ -20,16 +20,22 @@ jobs:
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
 
     steps:
-    # 1. 直接检出 packages 分支（包含 packages.sh 脚本）
-    # 使用 PAC_TOKEN 确保具备后续 push 权限
-    - name: Checkout packages branch
+    # 1. 检出当前仓库 openwrt-package-update (获取 packages.sh 脚本)
+    - name: Checkout source repo (openwrt-package-update)
+      uses: actions/checkout@v4.2.2
+      with:
+        path: 'source_repo'
+
+    # 2. 检出目标仓库 openwrt-packages 的 packages 分支
+    - name: Checkout target repo (openwrt-packages)
       uses: actions/checkout@v4.2.2
       with:
         repository: 'jeanbaker/openwrt-packages'
         ref: 'packages'
         token: ${{ secrets.PAC_TOKEN }}
+        path: 'target_repo'
 
-    # 2. 初始化环境
+    # 3. 初始化 Runner 环境
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -40,33 +46,36 @@ jobs:
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
 
-    # 3. 清理旧源码并运行 packages.sh 重新拉取
+    # 4. 进入目标仓库，清空旧包，然后调用源仓库的 packages.sh 生成新包
     - name: Update packages content
       run: |
-        # 赋予脚本执行权限
-        chmod +x ./packages.sh
-        
-        # 备份 packages.sh 和 README.md 到临时目录，防止被 git rm 误删
-        cp packages.sh /tmp/packages.sh
-        [ -f README.md ] && cp README.md /tmp/README.md
+        # 确认源仓库根目录下存在 packages.sh
+        if [ ! -f $GITHUB_WORKSPACE/source_repo/packages.sh ]; then
+          echo "Error: packages.sh not found in source repo!"
+          exit 1
+        fi
 
-        # 清除当前仓库中的所有旧软件包文件（保留 .git 版本库）
+        # 进入目标仓库，清空旧源码文件（保留 .git 目录）
+        cd $GITHUB_WORKSPACE/target_repo
         git rm -rf . >/dev/null 2>&1 || true
 
-        # 还原 packages.sh 和 README.md
-        cp /tmp/packages.sh ./packages.sh
-        [ -f /tmp/README.md ] && cp /tmp/README.md ./README.md
+        # 给 packages.sh 赋权并运行，拉取内容生成到当前 (target_repo) 目录
+        chmod +x $GITHUB_WORKSPACE/source_repo/packages.sh
+        $GITHUB_WORKSPACE/source_repo/packages.sh
 
-        # 执行更新脚本
-        ./packages.sh
-
-    # 4. 提交并推送最新代码到 packages 分支
-    - name: Upload
+    # 5. 将更新后的内容提交并推送至目标仓库 openwrt-packages 的 packages 分支
+    - name: Upload to target repo
       run: |
+        # 如果源仓库有 README.md，同步覆盖至目标仓库
+        [ -f $GITHUB_WORKSPACE/source_repo/README.md ] && cp $GITHUB_WORKSPACE/source_repo/README.md $GITHUB_WORKSPACE/target_repo/
+        
+        cd $GITHUB_WORKSPACE/target_repo
+        
+        # 检查是否有代码变动，避免没有更新时 push 报错
         if [ -n "$(git status --porcelain)" ]; then
           git add .
           git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
           git push origin packages
         else
-          echo "No changes detected, skipping commit."
+          echo "No changes detected, skipping push."
         fi
