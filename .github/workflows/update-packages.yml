@@ -9,8 +9,6 @@ on:
       - main
   schedule:
     - cron: 0 12 */7 * *
-  watch:
-    types: started
   workflow_dispatch:
 
 env:
@@ -18,42 +16,62 @@ env:
 
 jobs:
   merge:
-    runs-on: Ubuntu-22.04
+    runs-on: ubuntu-22.04
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
-        
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
 
+    steps:
+    # 1. 检出当前仓库（包含 packages.sh 脚本）
+    - name: Checkout current repo
+      uses: actions/checkout@v4
+      with:
+        path: 'main_repo'
+
+    # 2. 使用 PAC_TOKEN 检出目标仓库的 packages 分支
+    # actions/checkout 会自动将 Token 配置在本地 git config 中，后续无需在 URL 里带 Token
+    - name: Checkout target packages repo
+      uses: actions/checkout@v4
+      with:
+        repository: 'jeanbaker/openwrt-packages'
+        ref: 'packages'
+        token: ${{ secrets.PAC_TOKEN }}
+        path: 'target_packages'
+
+    # 3. 初始化环境
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install git subversion git-core wget
+        sudo -E apt-get -qq install -y git subversion wget
         sudo timedatectl set-timezone "$TZ"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
-        
-    - name: Clone packages
-      run: |
-        cd $GITHUB_WORKSPACE
-        chmod +x packages.sh
-        git clone -b packages https://github.com/jeanbaker/openwrt-packages.git packages
-        cd packages
-        rm -Rf *
-        git rm --cache *
-        $GITHUB_WORKSPACE/packages.sh
 
+    # 4. 执行脚本更新包
+    - name: Update packages content
+      run: |
+        # 进入目标仓库目录，清空原有内容（保留 .git 目录）
+        cd $GITHUB_WORKSPACE/target_packages
+        git rm -rf . >/dev/null 2>&1 || true
+        
+        # 给当前仓库中的 packages.sh 赋予执行权限并运行
+        chmod +x $GITHUB_WORKSPACE/main_repo/packages.sh
+        $GITHUB_WORKSPACE/main_repo/packages.sh
+
+    # 5. 提交并推送至目标仓库
     - name: Upload
       run: |
-        [ -e $GITHUB_WORKSPACE/README.md ] && cp $GITHUB_WORKSPACE/README.md $GITHUB_WORKSPACE/packages
-        cd $GITHUB_WORKSPACE/packages
-        git add .
-        git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
-        git push --quiet "https://${{ secrets.PAC_TOKEN }}@github.com/jeanbaker/openwrt-packages.git"
- 
-
- 
+        # 如果当前仓库根目录下有 README.md，复制过去
+        [ -f $GITHUB_WORKSPACE/main_repo/README.md ] && cp $GITHUB_WORKSPACE/main_repo/README.md $GITHUB_WORKSPACE/target_packages/
+        
+        cd $GITHUB_WORKSPACE/target_packages
+        
+        # 检查是否有变更，避免无变更时 commit 导致任务失败
+        if [ -n "$(git status --porcelain)" ]; then
+          git add .
+          git commit -m "update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
+          # 直接 push 即可，checkout step 已经配置好了 GitHub 身份凭据
+          git push origin packages
+        else
+          echo "No changes detected, skipping commit."
+        fi
