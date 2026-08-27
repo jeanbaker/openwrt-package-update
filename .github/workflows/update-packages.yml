@@ -20,13 +20,13 @@ jobs:
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
 
     steps:
-    # 1. 检出当前源仓库
+    # 1. 检出源仓库 (openwrt-package-update)
     - name: Checkout source repo
       uses: actions/checkout@v4.2.2
       with:
         path: 'source_repo'
 
-    # 2. 检出目标 packages 仓库
+    # 2. 检出目标仓库 (openwrt-packages) 的 packages 分支
     - name: Checkout target repo
       uses: actions/checkout@v4.2.2
       with:
@@ -49,26 +49,19 @@ jobs:
     # 4. 执行 packages.sh 脚本更新目标仓库
     - name: Update packages content
       run: |
-        # 1. 校验源文件和目标目录是否存在
-        if [ ! -f "$GITHUB_WORKSPACE/source_repo/packages.sh" ]; then
-          echo "❌ 错误: 在 source_repo 中未找到 packages.sh 脚本！"
-          exit 1
-        fi
-
-        if [ ! -d "$GITHUB_WORKSPACE/target_repo" ]; then
-          echo "❌ 错误: target_repo 未能成功检出！请检查 PAC_TOKEN 权限或目标仓库分支 packages 是否存在。"
-          exit 1
-        fi
-
-        # 2. 进入目标目录并清空旧文件（保留 .git）
-        cd $GITHUB_WORKSPACE/target_repo
-        git rm -rf . >/dev/null 2>&1 || true
-
-        # 3. 执行 packages.sh 脚本
         chmod +x $GITHUB_WORKSPACE/source_repo/packages.sh
+        cd $GITHUB_WORKSPACE/target_repo
+        
+        # 执行脚本
         $GITHUB_WORKSPACE/source_repo/packages.sh
+        
+        # 校验 .git 是否仍然存在
+        if [ ! -d ".git" ]; then
+          echo "❌ 错误: packages.sh 脚本删除了 target_repo 的 .git 目录！请检查 packages.sh 中的 rm 命令。"
+          exit 1
+        fi
 
-    # 5. 提交并推送
+    # 5. 提交并推送至目标仓库
     - name: Upload to target repo
       run: |
         [ -f $GITHUB_WORKSPACE/source_repo/README.md ] && cp $GITHUB_WORKSPACE/source_repo/README.md $GITHUB_WORKSPACE/target_repo/
@@ -82,7 +75,7 @@ jobs:
           git add .
           git commit -m "update $(TZ='Asia/Shanghai' date +@%Y%m%d)"
           git push origin packages
-          echo "✅ 已成功推送更新至 jeanbaker/openwrt-packages 的 packages 分支！"
+          echo "✅ 成功推送更新到 jeanbaker/openwrt-packages 的 packages 分支！"
         else
-          echo "⚠️ 未检测到任何代码变更，跳过 Commit & Push。"
+          echo "⚠️ 未检测到任何代码变更，跳过提交。"
         fi
