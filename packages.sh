@@ -31,8 +31,10 @@ git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git luci-theme
 
 
 #清理所有 Git 版本控制元数据，保持包目录干净
-echo "==> Cleaning up metadata..."
-find . -type d -name ".git" -exec rm -rf {} +
+echo "==> Cleaning up metadata from subpackages..."
+
+# ⚠️ 关键修正：添加 -mindepth 2，防止把 target_repo 本身的 .git 删掉！
+find . -mindepth 2 -type d -name ".git" -exec rm -rf {} +
 find . -type d -name ".svn" -exec rm -rf {} +
 find . -type d -name ".github" -exec rm -rf {} +
 find . -type f -name ".gitignore" -exec rm -rf {} +
