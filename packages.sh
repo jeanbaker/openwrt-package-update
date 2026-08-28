@@ -36,6 +36,9 @@ merge_package "https://github.com/kiddin9/op-packages.git" "main" "netdata"
 merge_package "https://github.com/Openwrt-Passwall/openwrt-passwall.git" "main" "luci-app-passwall"
 
 # 2. 完整仓库克隆 (克隆前必须先 rm -rf 删除旧文件夹，防止报错)
+echo "==> Cloning smartdns..."
+rm -rf smartdns
+git clone --depth=1 https://github.com/pymumu/openwrt-smartdns.git smartdns
 echo "==> Cloning argon..."
 rm -rf luci-theme-argon
 git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
